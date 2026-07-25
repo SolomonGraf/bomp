@@ -22,7 +22,7 @@ fn main() {
     let path = &args[1];
     let file: File = File::open(path).expect("Couldn't open file");
 
-    let mut l: Lexer = Lexer::new(file);
+    let mut l: Lexer = Lexer::new(file, path);
     let mut tokens: Vec<Token> = Vec::new();
 
     while !l.eof() {

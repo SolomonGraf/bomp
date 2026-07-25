@@ -2,24 +2,29 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use crate::err::LexerError::*;
+use crate::token::TokenKind;
 use crate::{err::LexerError, token::Token};
 
 // lexer takes a file
 
-pub struct Lexer {
+pub struct Lexer<'a> {
     reader: BufReader<File>,
     chars: Vec<char>,
-    pos: usize,
+    filename: &'a str,
+    row: usize,
+    col: usize,
     eof: bool,
 }
 
-impl Lexer {
-    pub fn new(input: File) -> Self {
+impl<'a> Lexer<'a> {
+    pub fn new(input: File, filename: &'a str) -> Self {
         let mut lexer = Self {
             reader: BufReader::new(input), // reader for file
-            chars: Vec::new(),             // stores current line
-            pos: 0,                        // index in line
-            eof: false,                    // eof
+            chars: Vec::new(),
+            filename,
+            row: 0,     // stores current line
+            col: 0,     // index in line
+            eof: false, // eof
         };
 
         // Read first line
@@ -35,25 +40,26 @@ impl Lexer {
             .read_line(&mut buf)
             .expect("read_char: Error while reading");
 
+        self.col = 0;
+        self.row += 1;
+
         if size == 0 {
             self.eof = true;
             self.chars = Vec::new();
-            self.pos = 0;
             return false;
         }
 
         Self::trim_line(&mut buf);
 
         self.chars = buf.chars().collect();
-        self.pos = 0;
         true
     }
 
     pub fn advance(&mut self) -> bool {
-        self.pos += 1;
+        self.col += 1;
 
         // If we're at the end of current line, try to read next
-        while self.pos >= self.chars.len() && !self.eof {
+        while self.col >= self.chars.len() && !self.eof {
             if !self.next_line() {
                 return false;
             }
@@ -73,22 +79,22 @@ impl Lexer {
     }
 
     fn current_char(&self) -> Option<char> {
-        if self.eof || self.pos >= self.chars.len() {
+        if self.eof || self.col >= self.chars.len() {
             None
         } else {
-            Some(self.chars[self.pos])
+            Some(self.chars[self.col])
         }
     }
 
     fn peek_char(&self) -> Option<char> {
-        if self.eof || self.pos + 1 >= self.chars.len() {
+        if self.eof || self.col + 1 >= self.chars.len() {
             None
         } else {
-            Some(self.chars[self.pos + 1])
+            Some(self.chars[self.col + 1])
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Token, LexerError> {
+    fn next_token_aux(&mut self) -> Result<TokenKind, LexerError> {
         // Skip whitespace
         while let Some(c) = self.current_char() {
             if !c.is_ascii_whitespace() {
@@ -109,7 +115,7 @@ impl Lexer {
                 if next == '>' {
                     self.advance(); // consume '-'
                     self.advance(); // consume '>'
-                    return Ok(Token::Arrow());
+                    return Ok(TokenKind::Arrow());
                 }
             }
         }
@@ -118,27 +124,27 @@ impl Lexer {
         match first_char {
             '+' => {
                 self.advance();
-                return Ok(Token::Plus());
+                return Ok(TokenKind::Plus());
             }
             '-' => {
                 self.advance();
-                return Ok(Token::Minus());
+                return Ok(TokenKind::Minus());
             }
             '&' => {
                 self.advance();
-                return Ok(Token::And());
+                return Ok(TokenKind::And());
             }
             '=' => {
                 self.advance();
-                return Ok(Token::Eq());
+                return Ok(TokenKind::Eq());
             }
             '|' => {
                 self.advance();
-                return Ok(Token::Or());
+                return Ok(TokenKind::Or());
             }
             '^' => {
                 self.advance();
-                return Ok(Token::Xor());
+                return Ok(TokenKind::Xor());
             }
             _ => {}
         }
@@ -159,8 +165,9 @@ impl Lexer {
 
             // Check for keywords
             Ok(match token.as_str() {
-                "fun" => Token::Fun(),
-                _ => Token::Identifier(token),
+                "fun" => TokenKind::Fun(),
+                "in" => TokenKind::In(),
+                _ => TokenKind::Identifier(token),
             })
         } else if first_char.is_ascii_digit() {
             // Number: digits only
@@ -172,7 +179,7 @@ impl Lexer {
                     break;
                 }
             }
-            Ok(Token::Word(token.parse().unwrap()))
+            Ok(TokenKind::Word(token.parse().unwrap()))
         } else {
             // Unknown - collect until whitespace
             while let Some(c) = self.current_char() {
@@ -182,8 +189,16 @@ impl Lexer {
                 token.push(c);
                 self.advance();
             }
-            Ok(Token::Identifier(token))
+            Ok(TokenKind::Identifier(token))
         }
+    }
+
+    pub fn next_token(&mut self) -> Result<Token<'a>, LexerError> {
+        let row = self.row;
+        let col = self.col;
+        self.next_token_aux().map(|kind| {
+            Token::new(kind, self.filename, row, col)
+        })
     }
 
     pub fn eof(&self) -> bool {
