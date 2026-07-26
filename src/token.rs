@@ -30,4 +30,10 @@ pub enum TokenKind {
     And(),
     Or(),
     In(),
+    LParam(),
+    RParam(),
+    LBrace(),
+    RBrace(),
+    LBracket(),
+    RBracket()
 }

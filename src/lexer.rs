@@ -142,6 +142,30 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 return Ok(TokenKind::Or());
             }
+            '(' => {
+                self.advance();
+                return Ok(TokenKind::LParam());
+            }
+            ')' => {
+                self.advance();
+                return Ok(TokenKind::RParam());
+            }
+            '[' => {
+                self.advance();
+                return Ok(TokenKind::LBracket());
+            }
+            ']' => {
+                self.advance();
+                return Ok(TokenKind::RBracket());
+            }
+            '{' => {
+                self.advance();
+                return Ok(TokenKind::LBrace());
+            }
+            '}' => {
+                self.advance();
+                return Ok(TokenKind::RBrace());
+            }
             '^' => {
                 self.advance();
                 return Ok(TokenKind::Xor());
