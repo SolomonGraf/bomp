@@ -6,14 +6,13 @@ pub enum AstNode {
 
 #[derive(Debug)]
 pub struct Function {
-    ident: String,
-    args: Vec<Param>,
-    body: Box<Expr>,
+    pub args: Vec<Param>,
+    pub body: Box<Expr>,
 }
 
 #[derive(Debug)]
 pub struct Param {
-    ident: String,
+    pub ident: String,
 }
 
 #[derive(Debug)]

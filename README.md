@@ -29,15 +29,31 @@ We don't have types. There are structures and packs, but no "types"
 functions are also first class
 
 
-# Features
+# MVP
+- Functions over words
+- Globals
+
+# Features in development
+- Float support
+- Pack handling - Determine
 - Higher-order functions
 - Linear types?
+
+# Eventual features
+- Functions over structures
+- Structures in general
+- Higher-order functions
+- Partial application
+- Generics
+- Strings & Macros
 
 # Compilation Strategy
 
 use BIR, an IR that we can then do optimizations on
 
 BIR is like LLVM, but untyped.
+
+BIR then compiles to LLVM
 
 TYPES
 - i64

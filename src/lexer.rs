@@ -196,9 +196,8 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Result<Token<'a>, LexerError> {
         let row = self.row;
         let col = self.col;
-        self.next_token_aux().map(|kind| {
-            Token::new(kind, self.filename, row, col)
-        })
+        self.next_token_aux()
+            .map(|kind| Token::new(kind, self.filename, row, col))
     }
 
     pub fn eof(&self) -> bool {

@@ -1,9 +1,9 @@
 #[derive(Debug)]
 pub struct Token<'a> {
-    kind: TokenKind,
-    file: &'a str,
-    row: usize,
-    col: usize,
+    pub kind: TokenKind,
+    pub file: &'a str,
+    pub row: usize,
+    pub col: usize,
 }
 
 impl<'a> Token<'a> {
@@ -17,7 +17,7 @@ impl<'a> Token<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TokenKind {
     Plus(),
     Minus(),

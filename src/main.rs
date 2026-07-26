@@ -28,12 +28,12 @@ fn main() {
     while !l.eof() {
         match l.next_token() {
             Ok(token) => {
-                println!("{:#?}", token);
                 tokens.push(token);
             }
             Err(e) => panic!("Error: {:?}", e),
         }
     }
 
-    let mut ast = parse(tokens);
+    let ast = parse(tokens);
+    println!("{:?}", ast);
 }
