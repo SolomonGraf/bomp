@@ -1,3 +1,5 @@
+use crate::token::TokenKind::Identifier;
+
 #[derive(Debug)]
 pub struct Token<'a> {
     pub kind: TokenKind,
@@ -13,6 +15,15 @@ impl<'a> Token<'a> {
             file: file,
             row: row,
             col: col,
+        }
+    }
+
+    pub fn dummy() -> Token<'a> {
+        Self {
+            kind: Identifier(String::new()),
+            file: "NO FILE",
+            row: 0,
+            col: 0,
         }
     }
 }
@@ -35,5 +46,9 @@ pub enum TokenKind {
     LBrace(),
     RBrace(),
     LBracket(),
-    RBracket()
+    RBracket(),
+    Colon(),
+    TWord(),
+    TPack(),
+    Of(),
 }

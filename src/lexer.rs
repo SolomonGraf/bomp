@@ -170,6 +170,10 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 return Ok(TokenKind::Xor());
             }
+            ':' => {
+                self.advance();
+                return Ok(TokenKind::Colon());
+            }
             _ => {}
         }
 
@@ -191,6 +195,9 @@ impl<'a> Lexer<'a> {
             Ok(match token.as_str() {
                 "fun" => TokenKind::Fun(),
                 "in" => TokenKind::In(),
+                "word" => TokenKind::TWord(),
+                "pack" => TokenKind::TPack(),
+                "of" => TokenKind::Of(),
                 _ => TokenKind::Identifier(token),
             })
         } else if first_char.is_ascii_digit() {

@@ -1,7 +1,20 @@
+use crate::constructs::Construct;
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Symbol(pub u32, pub Namespace);
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Namespace {
+    Variant,
+    Binding,
+}
+
+// Definition
+
 #[derive(Debug)]
 pub enum AstNode {
-    Global(String, Box<Expr>),
-    Function(String, Box<Function>),
+    Global(Symbol, Box<Expr>),
+    Function(Symbol, Box<Function>),
 }
 
 #[derive(Debug)]
@@ -12,7 +25,8 @@ pub struct Function {
 
 #[derive(Debug)]
 pub struct Param {
-    pub ident: String,
+    pub ident: Symbol,
+    pub cons: Construct,
 }
 
 #[derive(Debug)]
@@ -27,7 +41,7 @@ pub enum Expr {
 
 #[derive(Debug)]
 pub enum Lhs {
-    Ident(String),
+    Ident(Symbol),
 }
 
 #[derive(Debug)]
