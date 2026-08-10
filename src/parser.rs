@@ -29,11 +29,6 @@ fn precedence(bop: Bop) -> usize {
         Bop::Eq | Bop::Neq => 6,
     }
 }
-enum Fix {
-    Prefix,
-    Postfix,
-    Infix,
-}
 
 // Parsing Helper Functions
 
@@ -63,13 +58,6 @@ fn check_peek_ident(iter: &mut ParseIter) -> Result<(), ParserError> {
             kind: Identifier(_),
             ..
         }) => Ok(()),
-        t => Err(p_err_reftok(t)),
-    }
-}
-
-fn check_peek_word(iter: &mut ParseIter) -> Result<(), ParserError> {
-    match iter.peek() {
-        Some(Token { kind: Word(_), .. }) => Ok(()),
         t => Err(p_err_reftok(t)),
     }
 }
