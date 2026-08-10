@@ -1,4 +1,4 @@
-use crate::ast::{Bop, Function, Param, Symbol};
+use crate::ast::{Bop, Function, Param, Symbol, Uop};
 use crate::constructs::Construct::Fun;
 use crate::err::WCError::{self, ArgumentConstructMismatch, UnexpectedConstruct};
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ fn wc_expr(e: &Expr, w_env: &mut HashMap<Symbol, Construct>) -> Result<Construct
         Expr::Word(_) => Ok(Construct::Word()),
         Expr::Lhs(Lhs::Ident(s)) => w_env.get(&s).cloned().ok_or(WCError::UnboundIdentifier()),
         Expr::Binop(bop, e1, e2) => wc_bop(bop, e1, e2, w_env),
-        Expr::Unop(uop, e) => todo!("cons of unop"),
+        Expr::Unop(uop, e) => wc_unop(uop, e, w_env),
         Expr::Let(lhs, e1, e2) => match lhs {
             Lhs::Ident(s) => {
                 let cons = wc_expr(e1, w_env)?;
@@ -168,4 +168,15 @@ fn wc_bop(
             }
         }
     }
+}
+
+fn wc_unop(uop: &Uop, e: &Expr, w_env: &mut HashMap<Symbol, Construct>) -> Result<Construct> {
+    let w = wc_expr(e, w_env)?;
+     match uop {
+        Uop::Not() | Uop::Neg() => if w != Construct::Word() {
+            Err(WCError::UnexpectedConstruct(w))
+        } else {
+            Ok(w)
+        }
+        }
 }
