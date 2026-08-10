@@ -5,8 +5,9 @@ pub struct Symbol(pub u32, pub Namespace);
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Namespace {
-    Variant,
+    // Variant,
     Binding,
+    Global,
 }
 
 // Definition
@@ -37,6 +38,7 @@ pub enum Expr {
     Unop(Uop, Box<Expr>),
     Let(Lhs, Box<Expr>, Box<Expr>),
     Cond(Box<Expr>, Box<Expr>, Box<Expr>),
+    Call(Lhs, Vec<Expr>),
 }
 
 #[derive(Debug)]
@@ -44,7 +46,7 @@ pub enum Lhs {
     Ident(Symbol),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Bop {
     Add,
     Sub,
@@ -60,6 +62,7 @@ pub enum Bop {
     ModU,
     BitOr,
     BitAnd,
+    BitXor,
     LogOr,
     LogAnd,
     Eq,

@@ -29,6 +29,11 @@ fn get_rhs_syms(e: &Expr) -> Vec<&Symbol> {
             syms.append(&mut get_rhs_syms(e3));
             return syms;
         }
+        Expr::Call(Lhs::Ident(s), args) => {
+            let mut syms = vec![s];
+            args.iter().for_each(|e| syms.extend(get_rhs_syms(e)));
+            syms
+        }
     }
 }
 

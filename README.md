@@ -28,6 +28,22 @@ We don't have types. There are structures and packs, but no "types"
 
 functions are also first class
 
+Globals cannot be dynamic. Thus, we should be able to do constant propagation within the compiler to determine their value at compile time. To do this correctly, we need to check that no constants form a cycle
+
+KNOWN BUGS:
+scope (interner fix, should have new, intern, resolve? unsure)
+
+## Reserved Keywords
+`fun`, `in`, `pack`, `word`
+
+# STEPS
+1. Lexer
+2. Parser
+3. Struct checker/inference
+4. Borrow checker
+5. AST to BIR
+6. BIR Type Checker
+7. BIR to LLVM
 
 # MVP
 - Functions over words
@@ -46,6 +62,8 @@ functions are also first class
 - Partial application
 - Generics
 - Strings & Macros
+- Features for running on GPU
+- Type-based verification - Predicate is typing for vars, verify some property
 
 # Compilation Strategy
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-//
+use crate::ast::Symbol;
 
 pub type Reg = usize;
 
@@ -12,11 +12,11 @@ pub enum Type {
     Pack(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operand {
     Word(i64),
-    Ident(String),
-    GIdent(String),
+    Ident(Reg),
+    GIdent(Symbol),
     Null, // careful! no NPEs should be possible
 }
 
@@ -59,6 +59,7 @@ pub enum StmtKind {
     Cmp(Cmp, Operand, Operand),
     Call(Operand, Vec<Operand>),
     Gep(Operand, Vec<Operand>),
+    Phi(String, Reg, String, Reg),
 }
 
 #[derive(Debug)]
@@ -69,24 +70,25 @@ pub struct Stmt {
 
 #[derive(Debug)]
 pub enum Term {
-    Ret(Option<Reg>),
-    Br(),
+    Ret(Operand),
+    Br(String),
+    CBr(Reg, String, String),
 }
 
 #[derive(Debug)]
 pub struct Block {
     pub stmts: Vec<Stmt>,
-    pub term: Term,
+    pub term: Option<Term>,
 }
 
 #[derive(Debug)]
 pub struct FParam {
-    pub ident: String,
+    pub ident: Reg,
 }
 
 #[derive(Debug)]
 pub struct Func {
-    pub ident: String,
+    pub ident: Symbol,
     pub args: Vec<FParam>,
     pub entry: Block,
     pub body: HashMap<String, Block>,
@@ -94,7 +96,7 @@ pub struct Func {
 
 #[derive(Debug)]
 pub struct Global {
-    pub ident: String,
+    pub ident: Symbol,
     pub val: Operand,
 }
 

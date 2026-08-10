@@ -1,4 +1,5 @@
-use crate::ast::{AstNode, Expr, Function, Namespace, Param, Symbol};
+use crate::ast::Namespace::{Binding, Global};
+use crate::ast::{AstNode, Bop, Expr, Function, Lhs, Namespace, Param, Symbol, Uop};
 use crate::constructs::Construct;
 use crate::err::{ParserError, p_err_reftok, p_err_tok};
 use crate::token::{
@@ -10,9 +11,35 @@ use std::iter::Peekable;
 
 // HELPERS
 
+// Binary Ops Helper Functions
+fn precedence(bop: Bop) -> usize {
+    match bop {
+        Bop::Add | Bop::Sub | Bop::AddF | Bop::SubF => 1,
+        Bop::Mult
+        | Bop::Div
+        | Bop::MultF
+        | Bop::DivF
+        | Bop::DivU
+        | Bop::DivUF
+        | Bop::Mod
+        | Bop::ModU => 2,
+        Bop::BitOr | Bop::BitAnd | Bop::BitXor => 3,
+        Bop::LogOr | Bop::LogAnd => 4,
+        Bop::Leq | Bop::Geq | Bop::Gt | Bop::Lt => 5,
+        Bop::Eq | Bop::Neq => 6,
+    }
+}
+enum Fix {
+    Prefix,
+    Postfix,
+    Infix,
+}
+
+// Parsing Helper Functions
+
 type ParseIter<'a> = Peekable<std::vec::IntoIter<Token<'a>>>;
 
-pub fn check_next<'a>(iter: &mut ParseIter, kind_exp: TokenKind) -> Result<(), ParserError> {
+fn check_next(iter: &mut ParseIter, kind_exp: TokenKind) -> Result<(), ParserError> {
     match iter.next() {
         Some(Token {
             kind: kind_actual, ..
@@ -21,7 +48,7 @@ pub fn check_next<'a>(iter: &mut ParseIter, kind_exp: TokenKind) -> Result<(), P
     }
 }
 
-pub fn check_peek<'a>(iter: &mut ParseIter, kind_exp: TokenKind) -> Result<(), ParserError> {
+fn check_peek(iter: &mut ParseIter, kind_exp: TokenKind) -> Result<(), ParserError> {
     match iter.peek() {
         Some(Token {
             kind: kind_actual, ..
@@ -30,7 +57,7 @@ pub fn check_peek<'a>(iter: &mut ParseIter, kind_exp: TokenKind) -> Result<(), P
     }
 }
 
-pub fn check_peek_ident<'a>(iter: &mut ParseIter) -> Result<(), ParserError> {
+fn check_peek_ident(iter: &mut ParseIter) -> Result<(), ParserError> {
     match iter.peek() {
         Some(Token {
             kind: Identifier(_),
@@ -40,14 +67,14 @@ pub fn check_peek_ident<'a>(iter: &mut ParseIter) -> Result<(), ParserError> {
     }
 }
 
-pub fn check_peek_word<'a>(iter: &mut ParseIter) -> Result<(), ParserError> {
+fn check_peek_word(iter: &mut ParseIter) -> Result<(), ParserError> {
     match iter.peek() {
         Some(Token { kind: Word(_), .. }) => Ok(()),
         t => Err(p_err_reftok(t)),
     }
 }
 
-pub fn get_ident<'a>(iter: &mut ParseIter) -> Result<String, ParserError> {
+fn get_ident(iter: &mut ParseIter) -> Result<String, ParserError> {
     match iter.next() {
         Some(Token {
             kind: Identifier(s),
@@ -57,13 +84,17 @@ pub fn get_ident<'a>(iter: &mut ParseIter) -> Result<String, ParserError> {
     }
 }
 
-pub fn get_word<'a>(iter: &mut ParseIter) -> Result<i64, ParserError> {
+fn get_word(iter: &mut ParseIter) -> Result<i64, ParserError> {
     match iter.next() {
         Some(Token {
             kind: Word(val), ..
         }) => Ok(val),
         tok => Err(p_err_tok(tok)),
     }
+}
+
+fn get_peek<'a>(iter: &mut ParseIter<'a>) -> Option<Token<'a>> {
+    return iter.peek().map(|u| u.clone());
 }
 
 // Symbol Table
@@ -82,13 +113,25 @@ impl Interner {
     }
 
     fn intern(&mut self, s: &str, namespace: Namespace) -> Symbol {
-        if let Some(&sym) = self.map.get(s) {
+        if let Some(&sym) = self.map.get(s)
+            && sym.1 == namespace
+        {
             return sym;
         }
         let sym = Symbol(self.strings.len() as u32, namespace);
         self.strings.push(s.to_owned());
         self.map.insert(s.to_owned(), sym);
         sym
+    }
+
+    fn resolve(&mut self, s: &str, namespace: Namespace) -> Result<Symbol, ParserError> {
+        if let Some(&sym) = self.map.get(s)
+            && sym.1 == namespace
+        {
+            return Ok(sym);
+        } else {
+            return Err(p_err_tok(None));
+        }
     }
 }
 
@@ -111,7 +154,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<AstNode>, ParserError> {
     return parse_toplevel(&mut ctx);
 }
 
-fn parse_toplevel<'a>(ctx: &mut ParseCtx<'a>) -> Result<Vec<AstNode>, ParserError> {
+fn parse_toplevel(ctx: &mut ParseCtx) -> Result<Vec<AstNode>, ParserError> {
     let mut prog = Vec::new();
 
     while let Some(token) = ctx.iter.peek() {
@@ -127,18 +170,18 @@ fn parse_toplevel<'a>(ctx: &mut ParseCtx<'a>) -> Result<Vec<AstNode>, ParserErro
     return Ok(prog);
 }
 
-fn parse_global<'a>(ctx: &mut ParseCtx) -> Result<AstNode, ParserError> {
+fn parse_global(ctx: &mut ParseCtx) -> Result<AstNode, ParserError> {
     let ident = get_ident(ctx.iter)?;
     check_next(ctx.iter, Eq())?;
     let expr = parse_expr(ctx)?;
 
     return Ok(AstNode::Global(
-        ctx.interner.intern(&ident, Namespace::Binding),
+        ctx.interner.intern(&ident, Namespace::Global),
         Box::from(expr),
     ));
 }
 
-fn parse_fun<'a>(ctx: &mut ParseCtx) -> Result<AstNode, ParserError> {
+fn parse_fun(ctx: &mut ParseCtx) -> Result<AstNode, ParserError> {
     check_next(ctx.iter, Fun())?;
     let ident = get_ident(ctx.iter)?;
     let mut args = Vec::new();
@@ -163,7 +206,7 @@ fn parse_fun<'a>(ctx: &mut ParseCtx) -> Result<AstNode, ParserError> {
     let expr = parse_expr(ctx)?;
 
     Ok(AstNode::Function(
-        ctx.interner.intern(&ident, Namespace::Binding),
+        ctx.interner.intern(&ident, Namespace::Global),
         Box::from(Function {
             args,
             body: Box::from(expr),
@@ -171,13 +214,158 @@ fn parse_fun<'a>(ctx: &mut ParseCtx) -> Result<AstNode, ParserError> {
     ))
 }
 
-fn parse_expr<'a>(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
-    let word = get_word(ctx.iter)?;
-
-    return Ok(Expr::Word(word));
+fn bop_of_tok(tok: &Token) -> Option<Bop> {
+    match tok.kind {
+        Plus() => Some(Bop::Add),
+        Minus() => Some(Bop::Sub),
+        Eq() => Some(Bop::Eq),
+        Xor() => Some(Bop::BitXor),
+        And() => Some(Bop::BitAnd),
+        Or() => Some(Bop::BitOr),
+        OrOr() => Some(Bop::LogOr),
+        AndAnd() => Some(Bop::LogAnd),
+        _ => None,
+    }
 }
 
-fn parse_cons<'a>(ctx: &mut ParseCtx) -> Result<Construct, ParserError> {
+#[inline]
+fn starts_atom(tok: &Token) -> bool {
+    matches!(
+        tok.kind,
+        TokenKind::Identifier(_) | TokenKind::Word(_) | LParam()
+    )
+}
+
+// atom := ident | word | '(' expr ')'
+// Used for arguments and grouped expressions. Note: a bare identifier here is
+// just a variable reference, not a call — call syntax is only recognized in
+// parse_apply. So `f (g x) y` requires the parens around `g x`, same as OCaml.
+fn parse_atom(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
+    if check_peek(ctx.iter, LParam()).is_ok() {
+        check_next(ctx.iter, LParam())?;
+        let e = parse_expr(ctx)?;
+        check_next(ctx.iter, RParam())?;
+        return Ok(e);
+    }
+
+    let tok = ctx.iter.next();
+    match tok {
+        Some(Token {
+            kind: TokenKind::Identifier(s),
+            ..
+        }) => Ok(Expr::Lhs(Lhs::Ident(
+            ctx.interner
+                .resolve(&s, Binding)
+                .or(ctx.interner.resolve(&s, Global))?,
+        ))),
+        Some(Token {
+            kind: TokenKind::Word(val),
+            ..
+        }) => Ok(Expr::Word(val)),
+        t => Err(p_err_tok(t)),
+    }
+}
+
+// apply := ident atom+   (function call, e.g. f x y -> Call(f, [x, y]))
+//        | atom          (plain variable / literal / parenthesized expr)
+fn parse_apply(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
+    if check_peek_ident(ctx.iter).is_ok() {
+        let ident = get_ident(ctx.iter)?;
+        let sym = ctx
+            .interner
+            .resolve(&ident, Binding)
+            .or(ctx.interner.resolve(&ident, Global))?;
+
+        let mut args = Vec::new();
+        while let Some(tok) = get_peek(ctx.iter) {
+            if !starts_atom(&tok) {
+                break;
+            }
+            args.push(parse_atom(ctx)?);
+        }
+
+        return if args.is_empty() {
+            Ok(Expr::Lhs(Lhs::Ident(sym)))
+        } else {
+            Ok(Expr::Call(Lhs::Ident(sym), args))
+        };
+    }
+
+    parse_atom(ctx)
+}
+
+// unary := '-' unary | apply
+fn parse_unary(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
+    if check_peek(ctx.iter, Minus()).is_ok() {
+        check_next(ctx.iter, Minus())?;
+        let operand = parse_unary(ctx)?; // recursive: allows `--x`
+        return Ok(Expr::Unop(Uop::Neg(), Box::new(operand)));
+    }
+
+    parse_apply(ctx)
+}
+
+fn parse_primary(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
+    parse_unary(ctx)
+}
+
+fn parse_pratt(ctx: &mut ParseCtx, mut lhs: Expr, min_pred: usize) -> Result<Expr, ParserError> {
+    while let Some(tok) = get_peek(ctx.iter) {
+        let bop = match bop_of_tok(&tok) {
+            Some(b) => b,
+            None => break,
+        };
+        let pred = precedence(bop);
+        if pred < min_pred {
+            break;
+        }
+        ctx.iter.next(); // consume operator
+
+        let mut rhs = parse_primary(ctx)?;
+
+        while let Some(next_tok) = get_peek(ctx.iter) {
+            let next_bop = match bop_of_tok(&next_tok) {
+                Some(b) => b,
+                None => break,
+            };
+            let next_pred = precedence(next_bop);
+            if next_pred > pred {
+                rhs = parse_pratt(ctx, rhs, next_pred)?;
+            } else {
+                break;
+            }
+        }
+
+        lhs = Expr::Binop(bop, Box::new(lhs), Box::new(rhs));
+    }
+
+    Ok(lhs)
+}
+
+fn parse_expr(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
+    if check_peek(ctx.iter, If()).is_ok() {
+        return parse_cond(ctx);
+    }
+
+    if check_peek(ctx.iter, TokenKind::Let()).is_ok() {
+        check_next(ctx.iter, TokenKind::Let())?;
+        let ident = get_ident(ctx.iter)?;
+        check_next(ctx.iter, Eq())?;
+        let e1 = parse_expr(ctx)?;
+        check_next(ctx.iter, In())?;
+        let e2 = parse_expr(ctx)?;
+        return Ok(Expr::Let(
+            Lhs::Ident(ctx.interner.intern(&ident, Namespace::Binding)),
+            Box::from(e1),
+            Box::from(e2),
+        ));
+    }
+
+    let lhs = parse_primary(ctx)?;
+    parse_pratt(ctx, lhs, 0)
+}
+
+fn parse_cons(ctx: &mut ParseCtx) -> Result<Construct, ParserError> {
     // assume that if ident, its a construct alias
 
     if check_peek_ident(ctx.iter).is_ok() {
@@ -198,4 +386,14 @@ fn parse_cons<'a>(ctx: &mut ParseCtx) -> Result<Construct, ParserError> {
         // No support right for structures, requires LR parsing
         tok => Err(p_err_tok(tok)),
     }
+}
+
+fn parse_cond(ctx: &mut ParseCtx) -> Result<Expr, ParserError> {
+    check_next(ctx.iter, If())?;
+    let c = parse_expr(ctx)?;
+    check_next(ctx.iter, Then())?;
+    let iff = parse_expr(ctx)?;
+    check_next(ctx.iter, Else())?;
+    let elze = parse_expr(ctx)?;
+    Ok(Expr::Cond(Box::new(c), Box::new(iff), Box::new(elze)))
 }

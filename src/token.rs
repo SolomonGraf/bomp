@@ -1,6 +1,6 @@
 use crate::token::TokenKind::Identifier;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     pub kind: TokenKind,
     pub file: &'a str,
@@ -28,7 +28,7 @@ impl<'a> Token<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind {
     Plus(),
     Minus(),
@@ -39,6 +39,7 @@ pub enum TokenKind {
     Eq(),
     Xor(),
     And(),
+    Not(),
     Or(),
     In(),
     LParam(),
@@ -51,4 +52,10 @@ pub enum TokenKind {
     TWord(),
     TPack(),
     Of(),
+    If(),
+    Else(),
+    Then(),
+    Let(),
+    OrOr(),
+    AndAnd(),
 }

@@ -1,9 +1,8 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-use crate::err::LexerError::*;
-use crate::token::TokenKind;
-use crate::{err::LexerError, token::Token};
+use crate::err::LexerError;
+use crate::token::{Token, TokenKind};
 
 // lexer takes a file
 
@@ -106,19 +105,26 @@ impl<'a> Lexer<'a> {
         // Check for EOF
         let first_char = match self.current_char() {
             Some(c) => c,
-            None => return Err(ReadAfterEnd()),
+            None => return Err(LexerError::ReadAfterEnd()),
         };
 
-        // Two-character tokens
-        if first_char == '-' {
-            if let Some(next) = self.peek_char() {
-                if next == '>' {
-                    self.advance(); // consume '-'
-                    self.advance(); // consume '>'
-                    return Ok(TokenKind::Arrow());
+        macro_rules! match_two_chars {
+            ($first:expr, $second:expr, $token:expr) => {
+                if first_char == $first {
+                    if let Some(next) = self.peek_char() {
+                        if next == $second {
+                            self.advance();
+                            self.advance();
+                            return Ok($token);
+                        }
+                    }
                 }
-            }
+            };
         }
+
+        match_two_chars!('-', '>', TokenKind::Arrow());
+        match_two_chars!('&', '&', TokenKind::AndAnd());
+        match_two_chars!('|', '|', TokenKind::OrOr());
 
         // Single-character tokens
         match first_char {
@@ -174,6 +180,10 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 return Ok(TokenKind::Colon());
             }
+            '~' => {
+                self.advance();
+                return Ok(TokenKind::Not());
+            }
             _ => {}
         }
 
@@ -198,6 +208,10 @@ impl<'a> Lexer<'a> {
                 "word" => TokenKind::TWord(),
                 "pack" => TokenKind::TPack(),
                 "of" => TokenKind::Of(),
+                "if" => TokenKind::If(),
+                "else" => TokenKind::Else(),
+                "then" => TokenKind::Then(),
+                "let" => TokenKind::Let(),
                 _ => TokenKind::Identifier(token),
             })
         } else if first_char.is_ascii_digit() {
