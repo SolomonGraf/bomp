@@ -38,10 +38,6 @@ pub enum Bop {
     BitAnd,
     LogOr,
     LogAnd,
-}
-
-#[derive(Debug)]
-pub enum Cmp {
     Eq,
     Neq,
     Leq,
@@ -56,7 +52,6 @@ pub enum StmtKind {
     Alloca(Type),
     Load(Operand, Operand),
     Store(Operand, Operand),
-    Cmp(Cmp, Operand, Operand),
     Call(Operand, Vec<Operand>),
     Gep(Operand, Vec<Operand>),
     Phi(String, Reg, String, Reg),
